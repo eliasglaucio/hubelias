@@ -1,0 +1,45 @@
+name: Build and Deploy to Portainer Swarm
+
+on:
+  push:
+    branches:
+      - main # O deploy será feito sempre que houver um push na branch main. Pode mudar para 'master' se for o caso.
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    # Isso dá permissão para o GitHub Actions enviar arquivos para o GHCR
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Login na nuvem nativa do GitHub
+      - name: Log in to the Container registry (GHCR)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }} # ← Você NÃO precisa criar esse token, o GitHub passa ele sozinho.
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Constrói a imagem e joga no GHCR
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          # A imagem ficará no formato: ghcr.io/eliasglaucio/nome-do-repositorio:latest
+          tags: ghcr.io/${{ github.repository }}:latest
+
+      # Aciona o Webhook para o Portainer puxar a nova imagem e realizar o up/deploy do swarm
+      - name: Trigger Portainer Webhook
+        run: |
+          curl -X POST "${{ secrets.PORTAINER_WEBHOOK_URL }}"
