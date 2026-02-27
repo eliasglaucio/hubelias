@@ -1,14 +1,14 @@
-name: Build and Deploy to Portainer Swarm
+name: Build and Push to GHCR
 
 on:
   push:
     branches:
-      - main # O deploy será feito sempre que houver um push na branch main. Pode mudar para 'master' se for o caso.
+      - main # O build será feito sempre que houver um push na branch main. Pode mudar para 'master' se for o caso.
 
 jobs:
-  build-and-deploy:
+  build-and-push:
     runs-on: ubuntu-latest
-    
+
     # Isso dá permissão para o GitHub Actions enviar arquivos para o GHCR
     permissions:
       contents: read
@@ -29,7 +29,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Constrói a imagem e joga no GHCR
+      # Constrói a imagem passando as variáveis pro Next.js e joga no GHCR
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -38,8 +38,6 @@ jobs:
           push: true
           # A imagem ficará no formato: ghcr.io/eliasglaucio/nome-do-repositorio:latest
           tags: ghcr.io/${{ github.repository }}:latest
-
-      # Aciona o Webhook para o Portainer puxar a nova imagem e realizar o up/deploy do swarm
-      - name: Trigger Portainer Webhook
-        run: |
-          curl -X POST "${{ secrets.PORTAINER_WEBHOOK_URL }}"
+          build-args: |
+            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
